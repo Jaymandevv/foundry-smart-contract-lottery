@@ -14,20 +14,19 @@ contract DeployRaffle is Script {
 
         // local -> deploy mock, get local config
         // sepolia -> get sepolia config
-        helperConfig.NetworkConfig memory config = helperConfig.getConfig();
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
         vm.startBroadcast();
         Raffle raffle = new Raffle(
-            config.entranceFee, 
-            config.interval, 
-            config.vrfCoordinator, 
-            config.gasLane, 
-            config.subscriptionId, 
+            config.entranceFee,
+            config.interval,
+            config.vrfCoordinator,
+            config.gasLane,
+            config.subscriptionId,
             config.callbackGasLimit
-            )
+        );
 
         vm.stopBroadcast();
 
-
-        return (raffle, helperConfig)
+        return (raffle, helperConfig);
     }
 }
