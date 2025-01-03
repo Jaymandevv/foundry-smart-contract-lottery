@@ -8,6 +8,9 @@ import {Raffle} from "src/Raffle.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract RaffleTest is Test {
+    event RaffleEntered(address indexed player);
+    event winnerPicked(address indexed winner);
+
     Raffle public raffle;
     HelperConfig public helperConfig;
 
@@ -56,5 +59,35 @@ contract RaffleTest is Test {
         raffle.enterRaffle{value: entranceFee}();
 
         assert(raffle.getPlayer(0) == PLAYER);
+    }
+
+    function testEnteringRaffleEmitsEvent() public {
+        // Arrange
+        vm.prank(PLAYER);
+
+        // Act
+        vm.expectEmit(true, false, false, false, address(raffle));
+        emit RaffleEntered(PLAYER);
+
+        // Assert
+        raffle.enterRaffle{value: entranceFee}();
+    }
+
+    function testDontAllowPlayersToEnterWhileRafffleIsCalculating() public {
+        //Arrange
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        // warp cheatcode allow us to set a new timestamp
+        // We need this to set "upkeepNeeded" to true so
+        // we can call "perforUpKeep".
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+        raffle.performUpkeep("");
+        // Act / Assert
+
+        vm.expectRevert(Raffle.Raffle__RaffleNotOpen.selector);
+        vm.prank(PLAYER);
+
+        raffle.enterRaffle{value: entranceFee}();
     }
 }
