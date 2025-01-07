@@ -5,12 +5,14 @@ pragma solidity ^0.8.19;
 import {Script} from "forge-std/Script.sol";
 import {Raffle} from "src/Raffle.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
-import {CreateSubscription} from "script/Interaction.s.sol";
+import {CreateSubscription, FundSubscription, AddConsumer} from "script/Interaction.s.sol";
 
 contract DeployRaffle is Script {
-    function run() public {}
+    function run() public {
+        deployContract();
+    }
 
-    function deployContract() external returns (Raffle, HelperConfig) {
+    function deployContract() public returns (Raffle, HelperConfig) {
         HelperConfig helperConfig = new HelperConfig();
 
         // local -> deploy mock, get local config
@@ -21,6 +23,14 @@ contract DeployRaffle is Script {
             CreateSubscription createSubscription = new CreateSubscription();
             (config.subscriptionId, config.vrfCoordinator) = createSubscription
                 .createSubscription(config.vrfCoordinator);
+
+            // Fund thhe subscription
+            FundSubscription fundSubscription = new FundSubscription();
+            fundSubscription.fundSubscription(
+                config.vrfCoordinator,
+                config.subscriptionId,
+                config.link
+            );
         }
 
         vm.startBroadcast();
@@ -34,6 +44,15 @@ contract DeployRaffle is Script {
         );
 
         vm.stopBroadcast();
+
+        // Add consumer
+        //?? We don't need to broadcast because we have already broadcast in our addConsumer
+        AddConsumer addConsumer = new AddConsumer();
+        addConsumer.addConsumer(
+            address(raffle),
+            config.vrfCoordinator,
+            config.subscriptionId
+        );
 
         return (raffle, helperConfig);
     }

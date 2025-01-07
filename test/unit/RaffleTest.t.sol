@@ -90,4 +90,59 @@ contract RaffleTest is Test {
 
         raffle.enterRaffle{value: entranceFee}();
     }
+    // Check upKeep
+
+    function testCheckUpKeepReturnsFalseIfItHasNoBalance() public {
+        // Arrange
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+
+        // Act
+        (bool upKeepNeeded, ) = raffle.checkUpKeep("");
+
+        // Assertt
+        assert(!upKeepNeeded);
+    }
+
+    function testCheckUpKeepReturnsFalseIfRaffleIsNotOpen() public {
+        //Arrange
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+        raffle.performUpkeep("");
+
+        // Act
+        (bool upKeepNeeded, ) = raffle.checkUpKeep("");
+
+        // Assertt
+        assert(!upKeepNeeded);
+    }
+
+    function testCheckUpKeepReturnsFalseIfEnoughTimeHasntPassed() public {
+        // Arrange
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+
+        // Act
+        (bool upKeepNeeded, ) = raffle.checkUpKeep("");
+
+        // Assert
+        assert(!upKeepNeeded);
+    }
+
+    function testCheckUpKeepReturnsTrueWhenParametersAreGood() public {
+        // Arrange
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+
+        // Act
+        (bool upKeepNeeded, ) = raffle.checkUpKeep("");
+
+        // Assert
+
+        assertEq(upKeepNeeded, true);
+    }
 }
