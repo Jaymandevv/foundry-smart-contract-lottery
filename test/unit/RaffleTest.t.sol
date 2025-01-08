@@ -2,10 +2,12 @@
 
 pragma solidity ^0.8.19;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {DeployRaffle} from "script/DeployRaffle.s.sol";
 import {Raffle} from "src/Raffle.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {VRFCoordinatorV2_5Mock} from "lib/chainlink-brownie-contracts/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 
 contract RaffleTest is Test {
     event RaffleEntered(address indexed player);
@@ -144,5 +146,91 @@ contract RaffleTest is Test {
         // Assert
 
         assertEq(upKeepNeeded, true);
+    }
+
+    // Perform upkeep
+
+    function testPerformUpKeepCanOnlyRunIfCheckUpKeepIsTrue() public {
+        // Arrange
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+
+        // Act/ Assert
+        raffle.performUpkeep("");
+    }
+
+    function testPerformUpKeepRevertsIfCheckUpKeepIsFalse() public {
+        //Arrange
+        uint256 currentBalance = 0;
+        uint256 numPlayers = 0;
+        Raffle.RaffleState rState = raffle.getRaffleState();
+
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        currentBalance = currentBalance + entranceFee;
+        numPlayers = 1;
+
+        // Act/Assert
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Raffle.Raffle_upKeepNotNeeded.selector,
+                currentBalance,
+                numPlayers,
+                rState
+            )
+        );
+
+        raffle.performUpkeep("");
+    }
+
+    modifier raffleEntered() {
+        // Arrange
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+
+        _;
+    }
+
+    //? what if we need to get data from emitted events in our tests
+
+    function testPerformUpKeepUpdatesRaffleStateAndEmitsRequestId()
+        public
+        raffleEntered
+    {
+        //Act
+        vm.recordLogs(); // This record every tx logs(events) after this line of code and store it in an Array
+        raffle.performUpkeep("");
+        Vm.Log[] memory entries = vm.getRecordedLogs(); // Get all the logs record and store them in enteries variable
+
+        // console.log("Logs recorded: ", entries);
+
+        // The first event that will be record will come from vrfCoordinator because it also
+        // emit requestId and this will be in index  0 , so to get our emitted event we need to go
+        // index 1
+        bytes32 requestId = entries[1].topics[1];
+
+        // console.log("Our request Id: ", requestId);
+
+        // Assert
+        Raffle.RaffleState raffleState = raffle.getRaffleState();
+        assert(uint256(requestId) > 0);
+        assert(uint256(raffleState) == 1);
+    }
+
+    // Fulfillrandomwords
+
+    function testFulfillrandomWordsCanOnlyBeCalledAfterPerformUpKeep(
+        uint256 randomRequestId
+    ) public raffleEntered {
+        // Arrange / Act / Assert
+        vm.expectRevert(VRFCoordinatorV2_5Mock.InvalidRequest.selector);
+        VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(
+            randomRequestId,
+            address(raffle)
+        );
     }
 }

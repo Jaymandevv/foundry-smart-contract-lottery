@@ -68,8 +68,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
     /** Events */
 
-    event RaffleEntered(address indexed player);
-    event winnerPicked(address indexed winner);
+    event RaffleEntered(address indexed player); // Emit when new player enter raffle
+    event winnerPicked(address indexed winner); // Emit when a winner is picked
+    event RequestedRaffleWinner(uint256 indexed requestId); // Emit when we request for random words
 
     constructor(
         uint256 entranceFee,
@@ -158,7 +159,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
                 )
             });
 
-        s_vrfCoordinator.requestRandomWords(request);
+        uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
+
+        emit RequestedRaffleWinner(requestId);
     }
 
     // How we are gonnna use the random number to get the winner
